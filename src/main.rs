@@ -16,13 +16,13 @@ const ANSI_CLEAR: &str = "\x1B[2J\x1B[H";
 #[command(version, about)]
 struct Args {
     #[arg(long, required=true, num_args=1..)]
-    intervals: Vec<String>,
+    rounds: Vec<String>,
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
     let args = Args::parse();
-    let intervals: Vec<u64> = args
-        .intervals
+    let rounds: Vec<u64> = args
+        .rounds
         .iter()
         .filter_map(|s| Some(s.parse::<u64>().ok())?)
         .rev()
@@ -35,16 +35,16 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut last_time = Instant::now();
     let mut current_time = Instant::now();
     let mut total_time: u64 = 0;
-    let mut round_time: u64 = intervals[0];
+    let mut round_time: u64 = rounds[0];
 
     let mut idx: usize = 0;
 
     loop {
         // keep track of which round we're on
-        let interval = intervals[idx];
+        let interval = rounds[idx];
         if round_time >= interval {
             idx += 1;
-            if idx >= intervals.len() {
+            if idx >= rounds.len() {
                 idx = 0;
             }
             // Generate bell

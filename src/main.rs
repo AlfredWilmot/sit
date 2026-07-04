@@ -50,7 +50,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         .intervals
         .iter()
         .filter_map(|s| Some(s.parse::<u64>().ok())?)
-        .rev()
         .collect();
 
     // ensure rounds is greater than or equal to 1

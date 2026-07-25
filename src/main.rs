@@ -1,4 +1,5 @@
-use clap::{CommandFactory, Parser};
+use clap::builder::NonEmptyStringValueParser;
+use clap::{Command, arg, value_parser};
 use rodio::source::SineWave;
 use rodio::{MixerDeviceSink, Source};
 use std::thread;
@@ -7,27 +8,10 @@ use std::time::{Duration, Instant};
 const ANSI_CLEAR: &str = "\x1B[2J\x1B[H";
 
 fn main() {
-    match cli() {
+    match app() {
         Ok(()) => {}
         Err(err) => eprintln!("{err}")
     }
-}
-
-/// A simple time-keeping CLI app
-#[derive(Parser)]
-#[command(
-    version,
-    after_help = "Examples:
-    sit -r 5 30s 1m ...
-    sit 0.5h 15m
-    "
-)]
-struct Args {
-    /// Timer intervals
-    intervals: Vec<String>,
-    /// Total number of rounds (default=1)
-    #[arg(short, long, required = false, num_args = 1)]
-    rounds: Option<usize>,
 }
 
 fn bell(device_sink: &MixerDeviceSink, tone: f32) {
@@ -39,24 +23,34 @@ fn bell(device_sink: &MixerDeviceSink, tone: f32) {
     thread::sleep(Duration::from_secs_f32(1.5));
 }
 
-fn cli() -> Result<(), String> {
-    let args = Args::parse();
+fn app() -> Result<(), String> {
+
+    let matches = Command::new("sit")
+        .about("Simple Interval Timer")
+        .arg_required_else_help(true)
+        .arg(
+            arg!(-r --rounds [ROUNDS])
+                .num_args(1)
+                .value_parser(value_parser!(u64).range(1..))
+                .default_value("1")
+        )
+        .arg(
+            arg!(intervals: [INTERVAL])
+                .num_args(1..)
+                .value_parser(NonEmptyStringValueParser::new())
+                .next_line_help(true)
+         )
+        .get_matches();
 
     let mut device_sink = rodio::DeviceSinkBuilder::open_default_sink().map_err(|e| e.to_string())?;
     device_sink.log_on_drop(false);
 
-    let intervals: Vec<u64> = args
-        .intervals
-        .iter()
-        .filter_map(|s| Some(s.parse::<u64>().ok())?)
-        .collect();
+    let intervals: Vec<u64> = matches
+        .get_many::<String>("intervals")
+        .map(|vals| vals.collect::<Vec<_>>()).unwrap_or_default()
+        .iter().map(|x| x.parse::<u64>().unwrap()).collect();
 
-    if intervals.is_empty() {
-        return Err(format!("{}", Args::command().error(clap::error::ErrorKind::TooFewValues, "Must specify at least one interval!")));
-    }
-
-    // ensure rounds is greater than or equal to 1
-    let rounds = args.rounds.filter(|&x| x >= 1).unwrap_or(1);
+    let rounds: u64 = *matches.get_one("rounds").expect("number of rounds should be specified");
 
     let start_time = Instant::now();
     let mut last_time = start_time;

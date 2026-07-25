@@ -1,34 +1,32 @@
-use clap::Parser;
+use clap::{CommandFactory, Parser};
 use rodio::source::SineWave;
 use rodio::{MixerDeviceSink, Source};
-use std::error::Error;
 use std::thread;
 use std::time::{Duration, Instant};
 
-// TODO
-// - [ ] cli flags and parse human-readable duration format:
-//          e.g. --intervals 1m 30s --lim 1h
-//          or --spar 5m --rest 2m --rounds 5
-// - [ ] print single formatted output string
-// - [ ] TUI showing grid of digital timers
-
 const ANSI_CLEAR: &str = "\x1B[2J\x1B[H";
+
+fn main() {
+    match cli() {
+        Ok(()) => {}
+        Err(err) => eprintln!("{err}")
+    }
+}
 
 /// A simple time-keeping CLI app
 #[derive(Parser)]
 #[command(
     version,
     after_help = "Examples:
-    cli-timer --intervals 10 20 30 --rounds 3
-    cli-timer --intervals 60 90
+    sit -r 5 30s 1m ...
+    sit 0.5h 15m
     "
 )]
 struct Args {
-    /// List of intervals for every round
-    #[arg(long, required=true, num_args=1..)]
+    /// Timer intervals
     intervals: Vec<String>,
     /// Total number of rounds (default=1)
-    #[arg(long, required = false, num_args = 1)]
+    #[arg(short, long, required = false, num_args = 1)]
     rounds: Option<usize>,
 }
 
@@ -41,16 +39,21 @@ fn bell(device_sink: &MixerDeviceSink, tone: f32) {
     thread::sleep(Duration::from_secs_f32(1.5));
 }
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn cli() -> Result<(), String> {
     let args = Args::parse();
 
-    let mut device_sink = rodio::DeviceSinkBuilder::open_default_sink()?;
+    let mut device_sink = rodio::DeviceSinkBuilder::open_default_sink().map_err(|e| e.to_string())?;
+    device_sink.log_on_drop(false);
 
     let intervals: Vec<u64> = args
         .intervals
         .iter()
         .filter_map(|s| Some(s.parse::<u64>().ok())?)
         .collect();
+
+    if intervals.is_empty() {
+        return Err(format!("{}", Args::command().error(clap::error::ErrorKind::TooFewValues, "Must specify at least one interval!")));
+    }
 
     // ensure rounds is greater than or equal to 1
     let rounds = args.rounds.filter(|&x| x >= 1).unwrap_or(1);

@@ -10,7 +10,7 @@ const ANSI_CLEAR: &str = "\x1B[2J\x1B[H";
 fn main() {
     match app() {
         Ok(()) => {}
-        Err(err) => eprintln!("{err}")
+        Err(err) => eprintln!("{err}"),
     }
 }
 
@@ -23,34 +23,69 @@ fn bell(device_sink: &MixerDeviceSink, tone: f32) {
     thread::sleep(Duration::from_secs_f32(1.5));
 }
 
-fn app() -> Result<(), String> {
+fn interval_str_into_seconds(interval: String) -> Result<u64, String> {
+    // scan while there are valid digits until we reach end of string or duration char [sSmMhH]
 
+    let mut buff = Vec::<u8>::new();
+    let mut mul = 1;
+
+    for char in interval.as_bytes() {
+        match char {
+            b'0'..=b'9' => buff.push(*char),
+            b's' => {
+                mul = 1;
+                break;
+            }
+            b'm' => {
+                mul = 60;
+                break;
+            }
+            b'h' => {
+                mul = 60 * 60;
+                break;
+            }
+            _ => return Err("detected invalid interval char".to_string()),
+        }
+    }
+    let result: String = String::from_utf8(buff).map_err(|e| e.to_string())?;
+    Ok(result.parse::<u64>().map_err(|e| e.to_string())? * mul)
+}
+
+fn app() -> Result<(), String> {
     let matches = Command::new("sit")
         .about("Simple Interval Timer")
         .arg_required_else_help(true)
         .arg(
-            arg!(-r --rounds [ROUNDS])
+            arg!(-r - -rounds[ROUNDS])
                 .num_args(1)
                 .value_parser(value_parser!(u64).range(1..))
-                .default_value("1")
+                .default_value("1"),
         )
         .arg(
             arg!(intervals: [INTERVAL])
                 .num_args(1..)
                 .value_parser(NonEmptyStringValueParser::new())
-                .next_line_help(true)
-         )
+                .next_line_help(true),
+        )
         .get_matches();
 
-    let mut device_sink = rodio::DeviceSinkBuilder::open_default_sink().map_err(|e| e.to_string())?;
+    let mut device_sink =
+        rodio::DeviceSinkBuilder::open_default_sink().map_err(|e| e.to_string())?;
     device_sink.log_on_drop(false);
 
-    let intervals: Vec<u64> = matches
+    let _intervals: Result<Vec<u64>, String> = matches
         .get_many::<String>("intervals")
-        .map(|vals| vals.collect::<Vec<_>>()).unwrap_or_default()
-        .iter().map(|x| x.parse::<u64>().unwrap()).collect();
+        .map(|vals| vals.collect::<Vec<_>>())
+        .unwrap_or_default()
+        .iter_mut()
+        .map(|x| interval_str_into_seconds(x.to_ascii_lowercase()))
+        .collect();
 
-    let rounds: u64 = *matches.get_one("rounds").expect("number of rounds should be specified");
+    let intervals = _intervals?;
+
+    let rounds: u64 = *matches
+        .get_one("rounds")
+        .expect("number of rounds should be specified");
 
     let start_time = Instant::now();
     let mut last_time = start_time;

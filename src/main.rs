@@ -83,6 +83,9 @@ fn app() -> Result<(), String> {
 
     let intervals = _intervals?;
 
+    if intervals.is_empty() {
+        return Err("Must specify at least one interval".to_string());
+    }
     let rounds: u64 = *matches
         .get_one("rounds")
         .expect("number of rounds should be specified");

@@ -7,6 +7,22 @@ use std::time::{Duration, Instant};
 
 const ANSI_CLEAR: &str = "\x1B[2J\x1B[H";
 
+const HELP_TEXT: &str = r"
+Simple Interval Timer
+
+A dead-simple CLI tool for quickly defining and keeping track of an arbitrary number of consecutive set/break intervals,
+repeated by the number of specified rounds. The start of each interval is marked by a high-pitched *beep*,
+and the end of the final round is marked by a more bassy *bloop*.
+Intervals must be provided as positive integer values, and are assumed to be of unit seconds by default,
+but units of seconds/minutes/hours can be specified using the corresponding suffix.
+The number of rounds is one by default if the -r/--rounds flag is not used.
+
+Example Usage:
+# 5 rounds of 2 minute 'set' intervals, followed by 30s 'break' intervals
+sit -r 5 2m 30s
+# 1 round of a 60 second 'set' interval, followed by 1h 'break' interval
+sit 60 1h";
+
 fn main() {
     match app() {
         Ok(()) => {}
@@ -32,15 +48,15 @@ fn interval_str_into_seconds(interval: String) -> Result<u64, String> {
     for char in interval.as_bytes() {
         match char {
             b'0'..=b'9' => buff.push(*char),
-            b's' => {
+            b's' | b'S' => {
                 mul = 1;
                 break;
             }
-            b'm' => {
+            b'm' | b'M' => {
                 mul = 60;
                 break;
             }
-            b'h' => {
+            b'h' | b'H' => {
                 mul = 60 * 60;
                 break;
             }
@@ -53,7 +69,7 @@ fn interval_str_into_seconds(interval: String) -> Result<u64, String> {
 
 fn app() -> Result<(), String> {
     let matches = Command::new("sit")
-        .about("Simple Interval Timer")
+        .about(HELP_TEXT)
         .arg_required_else_help(true)
         .arg(
             arg!(-r - -rounds[ROUNDS])

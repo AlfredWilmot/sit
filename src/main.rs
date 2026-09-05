@@ -8,20 +8,24 @@ use std::time::{Duration, Instant};
 const ANSI_CLEAR: &str = "\x1B[2J\x1B[H";
 
 const HELP_TEXT: &str = r"
-Simple Interval Timer
+Simple Interval Timer is for specifying rounds of repeating intervals.
+The start of each interval is marked by a high-pitched *beep*, and the end of the final round is marked by a more bassy *bloop*.
 
-A dead-simple CLI tool for quickly defining and keeping track of an arbitrary number of consecutive set/break intervals,
-repeated by the number of specified rounds. The start of each interval is marked by a high-pitched *beep*,
-and the end of the final round is marked by a more bassy *bloop*.
-Intervals must be provided as positive integer values, and are assumed to be of unit seconds by default,
-but units of seconds/minutes/hours can be specified using the corresponding suffix.
-The number of rounds is one by default if the -r/--rounds flag is not used.
+Intervals must be provided as positive integer values, and are assumed to be of unit seconds by default.
+Units of seconds/minutes/hours can be specified using the corresponding suffix.
+
+The number of rounds is one by default if the -r/--rounds flag is omitted.
 
 Example Usage:
-# 5 rounds of 2 minute 'set' intervals, followed by 30s 'break' intervals
-sit -r 5 2m 30s
-# 1 round of a 60 second 'set' interval, followed by 1h 'break' interval
-sit 60 1h";
+
+    # 5 rounds in total, each round has a 2 min 'set', followed by a 30 sec 'break'
+    sit -r 5 2m 30s
+
+    # 1 round in total, consisting of a 90 sec 'warmup', a 5 min 'set', and a 60 sec 'cooldown'
+    sit 90 5m 60
+
+    # a sequence of dubious intervals repeated many times
+    sit --rounds 777 6s 6m 110h";
 
 fn main() {
     match app() {
